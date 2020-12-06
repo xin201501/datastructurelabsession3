@@ -1,5 +1,5 @@
 #pragma once
-#include <algorithm>
+#include <charconv>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -11,20 +11,21 @@
 struct TreeNode {
   using MapType = std::unordered_multimap<size_t, std::shared_ptr<TreeNode>>;
   std::string componentName;
-  size_t componentSize;
+  size_t hasComponentSize;
   MapType next;
   TreeNode() = default;
-  TreeNode(std::string_view componentName, size_t componentSize = 0,
+  TreeNode(std::string_view componentName, size_t hasComponentSize = 0,
            const MapType &next = {})
-      : componentName(componentName.data()), componentSize(componentSize),
+      : componentName(componentName.data()), hasComponentSize(hasComponentSize),
         next(next) {}
   TreeNode(const TreeNode &another) = default;
   TreeNode(TreeNode &&another) noexcept
       : componentName(std::move(another.componentName)),
-        componentSize(another.componentSize), next(std::move(another.next)) {}
+        hasComponentSize(another.hasComponentSize),
+        next(std::move(another.next)) {}
   TreeNode &operator=(const TreeNode &another) {
     componentName = another.componentName;
-    componentSize = another.componentSize;
+    hasComponentSize = another.hasComponentSize;
     next = another.next;
     return *this;
   }
@@ -41,13 +42,21 @@ struct TreeNode {
     }
     return result;
   }
-  std::string visit() const {
-    std::string result;
-    result += printSubComponentInfo();
-    for (const auto &[duumy, node] : next) {
-      result += node->visit();
+  template <typename T>
+  T visit(const std::function<T(const TreeNode &)> &visitWay) const {
+    return const_cast<TreeNode *>(this)->visit(visitWay);
+  }
+  template <typename T> T visit(const std::function<T(TreeNode &)> &visitWay) {
+    T result;
+    for (const auto &[dummy, child] : next) {
+      result += visitWay(child);
     }
     return result;
+  }
+  void visit(const std::function<void(TreeNode &)> &visitWay) {
+    for (const auto &[dummy, child] : next) {
+      visitWay(*child);
+    }
   }
 };
 class Tree {
@@ -56,23 +65,27 @@ public:
 
 private:
   std::shared_ptr<TreeNode> head;
-  static void deepClone(TreeNodePtr &newInstance, const TreeNodePtr another) {
+  void deepCopy(TreeNodePtr &newInstance, const TreeNodePtr another) {
     if (another == nullptr) {
       return;
     }
-    newInstance = new TreeNode(another->componentName, another->componentSize);
-    for (const auto &[componentCount, component] : another->next) {
+    newInstance =
+        new TreeNode(another->componentName, another->hasComponentSize);
+    for (const auto &[hasComponentSize, component] : another->next) {
       auto insertPostion = newInstance->next.insert(
-          {componentCount, std::make_shared<TreeNode>(*component)});
+          {hasComponentSize,
+           std::make_shared<TreeNode>(component->componentName,
+                                      component->hasComponentSize)});
       auto nextCopyPostion = insertPostion->second.get();
-      deepClone(nextCopyPostion, component.get());
+      deepCopy(nextCopyPostion, component.get());
+      insertPostion->second.reset(nextCopyPostion);
     }
   }
   bool removeSubTree(std::shared_ptr<TreeNode> &beginLocation) {
     if (beginLocation == nullptr) {
       return false;
     }
-    for (auto &[key, child] : beginLocation->next) {
+    for (auto &[dummy, child] : beginLocation->next) {
       if (!removeSubTree(child)) {
         return false;
       }
@@ -90,7 +103,7 @@ private:
       return {std::reference_wrapper(beginSearchLocation)};
     }
     std::optional<std::reference_wrapper<std::shared_ptr<TreeNode>>> result;
-    for (auto &[key, child] : beginSearchLocation->next) {
+    for (auto &[hasComponentSize, child] : beginSearchLocation->next) {
       result = findComponent(componentName, child);
       if (result.has_value()) {
         return {*result};
@@ -98,22 +111,46 @@ private:
     }
     return std::nullopt;
   }
+  template <typename T>
+  T visit(const std::function<T(const TreeNode &)> &visitWay,
+          TreeNodePtr &position) {
+    T result;
+    if (position == nullptr) {
+      return result;
+    }
+    result += visitWay(*position);
+    for (auto &&[dummy, nextNodes] : position->next) {
+      auto nextVisitPtr = nextNodes.get();
+      result += visit(visitWay, nextVisitPtr);
+    }
+    return result;
+  }
+  void visit(const std::function<void(TreeNode &)> &visitWay,
+             TreeNodePtr &position) {
+    if (position == nullptr) {
+      return;
+    }
+    visitWay(*position);
+    for (auto &&[dummy, nextNodes] : position->next) {
+      auto nextVisitPtr = nextNodes.get();
+      visit(visitWay, nextVisitPtr);
+    }
+  }
 
 public:
   Tree() : head(nullptr) {}
-  //执行浅拷贝,多个通过拷贝构造而相关联的对象共享元素,若进行深拷贝请使用deepClone()
+  //执行浅拷贝,多个通过拷贝构造而相关联的对象共享元素,若进行深拷贝请使用deepCopy()
   Tree(const Tree &another) = default;
-  static Tree deepClone(const Tree &another) {
+  Tree deepCopy() {
     Tree instance;
-    if (another.head == nullptr) {
+    if (head == nullptr) {
       return instance;
     }
     auto nextCopyPostion = instance.head.get();
-    deepClone(nextCopyPostion, another.head.get());
+    deepCopy(nextCopyPostion, head.get());
     instance.head.reset(nextCopyPostion);
     return instance;
   }
-
   Tree(Tree &&another) noexcept : head(another.head) { another.head.reset(); }
   decltype(auto) findComponent(std::string_view componentName) {
     return findComponent(componentName, head);
@@ -148,11 +185,18 @@ public:
   bool clear() { return removeSubTree(head); }
   template <typename... Args>
   void modifyComponentInfo(std::string_view componentName, Args... newInfo) {
-    auto postion = findComponent(componentName);
+    auto &postion = findComponent(componentName);
     if (!postion) {
       return;
     }
-    postion = std::make_shared<TreeNode>(std::forward<Args>(newInfo)...);
+    auto &modifyPostion = *postion.get();
+    auto oldComponentCount = postion->get().hasComponentSize;
+    modifyPostion = std::make_shared<TreeNode>(std::forward<Args>(newInfo)...);
+    auto newComponentCount = modifyPostion->hasComponentSize;
+    if (oldComponentCount != newComponentCount) {
+      modifyPostion->next.insert({newComponentCount, std::move(modifyPostion)});
+      modifyPostion->next.erase(oldComponentCount);
+    }
   }
   std::string printSubComponentInfo(std::string_view componentName) const {
     auto findPostion = findComponent(componentName);
@@ -161,10 +205,20 @@ public:
     }
     return (*findPostion).get()->printSubComponentInfo();
   }
-  std::string visit() const {
+  template <typename T>
+  T visit(const std::function<T(const TreeNode &)> &visitWay) const {
+    return const_cast<TreeNode *>(this)->visit(visitWay);
+  }
+  template <typename T>
+  T visit(const std::function<T(const TreeNode &)> &visitWay) {
+    TreeNodePtr headPointer = head.get();
+    return visit(visitWay, headPointer);
+  }
+  void visit(const std::function<void(TreeNode &)> &visitWay) {
     if (head == nullptr) {
-      return "";
+      return;
     }
-    return head->visit();
+    TreeNode *headPointer = head.get();
+    visit(visitWay, headPointer);
   }
 };
