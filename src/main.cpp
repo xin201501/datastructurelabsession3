@@ -2,7 +2,6 @@
 #include "tree.h"
 #include "treefactory.h"
 #include <iostream>
-#include <memory>
 #include <vector>
 // visual studio 编译器stdc++latest
 using std::cerr;
