@@ -38,8 +38,6 @@ struct TreeNode {
     }
     return result;
   }
-  std::string getComponentName() const { return componentName; }
-  size_t getCount() const { return count; }
   template <typename T>
   T visit(const std::function<T(const TreeNode &)> &visitWay) const {
     return const_cast<TreeNode *>(this)->visit(visitWay);

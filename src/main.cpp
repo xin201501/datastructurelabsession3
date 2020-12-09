@@ -47,12 +47,12 @@ int main() {
   std::thread collectOldObjectInfoThread([&]() {
     hospital.visit([&sourceVisitResult](const TreeNode &node) {
       sourceVisitResult +=
-          node.getComponentName() + std::to_string(node.getCount()) + '\n';
+          node.componentName + ' ' + std::to_string(node.count) + '\n';
     });
   });
   hospitalCopy.visit([&copyVisitResult](const TreeNode &node) {
     copyVisitResult +=
-        node.getComponentName() + std::to_string(node.getCount()) + '\n';
+        node.componentName + ' ' + std::to_string(node.count) + '\n';
   });
   collectOldObjectInfoThread.join();
   if (sourceVisitResult != copyVisitResult) {
