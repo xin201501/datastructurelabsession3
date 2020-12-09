@@ -17,8 +17,8 @@ int main() {
   cout << process.getQueryResult(hospital);
   cout << "---------------\n";
   hospital.visit([](const TreeNode &node) {
-    cout << "component name:" << node.componentName
-         << " count: " << node.hasComponentSize << '\n';
+    cout << "component name:" << node.componentName << " count: " << node.count
+         << '\n';
   });
   Tree hospitalCopy = hospital.deepCopy();
   std::vector<TreeNode *> oldTreeNodeMemoryLocation, newTreeNodeMemoryLocation;
@@ -46,11 +46,13 @@ int main() {
   std::string sourceVisitResult, copyVisitResult;
   std::thread collectOldObjectInfoThread([&]() {
     hospital.visit([&sourceVisitResult](const TreeNode &node) {
-      sourceVisitResult += node.printSubComponentInfo();
+      sourceVisitResult +=
+          node.getComponentName() + std::to_string(node.getCount()) + '\n';
     });
   });
   hospitalCopy.visit([&copyVisitResult](const TreeNode &node) {
-    copyVisitResult += node.printSubComponentInfo();
+    copyVisitResult +=
+        node.getComponentName() + std::to_string(node.getCount()) + '\n';
   });
   collectOldObjectInfoThread.join();
   if (sourceVisitResult != copyVisitResult) {

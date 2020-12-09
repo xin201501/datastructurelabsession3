@@ -9,21 +9,19 @@
 struct TreeNode {
   using MapType = std::multimap<size_t, std::shared_ptr<TreeNode>>;
   std::string componentName;
-  size_t hasComponentSize;
+  size_t count;
   MapType next;
   TreeNode() = default;
-  TreeNode(std::string_view componentName, size_t hasComponentSize = 0,
+  TreeNode(std::string_view componentName, size_t count = 0,
            const MapType &next = {})
-      : componentName(componentName.data()), hasComponentSize(hasComponentSize),
-        next(next) {}
+      : componentName(componentName.data()), count(count), next(next) {}
   TreeNode(const TreeNode &another) = default;
   TreeNode(TreeNode &&another) noexcept
-      : componentName(std::move(another.componentName)),
-        hasComponentSize(another.hasComponentSize),
+      : componentName(std::move(another.componentName)), count(another.count),
         next(std::move(another.next)) {}
   TreeNode &operator=(const TreeNode &another) {
     componentName = another.componentName;
-    hasComponentSize = another.hasComponentSize;
+    count = another.count;
     next = another.next;
     return *this;
   }
@@ -34,12 +32,14 @@ struct TreeNode {
   std::string printSubComponentInfo() const {
     std::string result("Part " + std::string(componentName) +
                        " subparts are:\n");
-    for (const auto &[hasComponentSize, child] : next) {
-      result = result + std::to_string(hasComponentSize) + ' ' +
-               child->componentName + '\n';
+    for (const auto &[count, child] : next) {
+      result =
+          result + std::to_string(count) + ' ' + child->componentName + '\n';
     }
     return result;
   }
+  std::string getComponentName() const { return componentName; }
+  size_t getCount() const { return count; }
   template <typename T>
   T visit(const std::function<T(const TreeNode &)> &visitWay) const {
     return const_cast<TreeNode *>(this)->visit(visitWay);
@@ -67,13 +67,11 @@ private:
     if (another == nullptr) {
       return;
     }
-    newInstance =
-        new TreeNode(another->componentName, another->hasComponentSize);
-    for (const auto &[hasComponentSize, component] : another->next) {
+    newInstance = new TreeNode(another->componentName, another->count);
+    for (const auto &[count, component] : another->next) {
       auto insertposition = newInstance->next.insert(
-          {hasComponentSize,
-           std::make_shared<TreeNode>(component->componentName,
-                                      component->hasComponentSize)});
+          {count, std::make_shared<TreeNode>(component->componentName,
+                                             component->count)});
       auto nextCopyposition = insertposition->second.get();
       deepCopy(nextCopyposition, component.get());
       insertposition->second.reset(nextCopyposition);
@@ -101,7 +99,7 @@ private:
       return {std::reference_wrapper(beginSearchLocation)};
     }
     std::optional<std::reference_wrapper<std::shared_ptr<TreeNode>>> result;
-    for (auto &[hasComponentSize, child] : beginSearchLocation->next) {
+    for (auto &[count, child] : beginSearchLocation->next) {
       result = findComponent(componentName, child);
       if (result.has_value()) {
         return {*result};
@@ -188,9 +186,9 @@ public:
       return;
     }
     auto &modifyposition = position->get();
-    auto oldComponentCount = position->get()->hasComponentSize;
+    auto oldComponentCount = position->get()->count;
     modifyposition = std::make_shared<TreeNode>(std::forward<Args>(newInfo)...);
-    auto newComponentCount = modifyposition->hasComponentSize;
+    auto newComponentCount = modifyposition->count;
     if (oldComponentCount != newComponentCount) {
       modifyposition->next.insert(
           {newComponentCount, std::move(modifyposition)});
