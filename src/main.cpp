@@ -20,17 +20,17 @@ int main() {
     cout << "component name:" << node.componentName
          << " size: " << node.hasComponentSize << '\n';
   });
-  Tree hosptitalCopy = hospital.deepCopy();
+  Tree hospitalCopy = hospital.deepCopy();
   std::vector<TreeNode *> oldTreeNodeMemoryLocation, newTreeNodeMemoryLocation;
-  std::thread pushOldObjectMemoryIntoVectorThread([&]() {
+  std::thread pushOldHospitalMemoryIntoVectorThread([&]() {
     hospital.visit([&oldTreeNodeMemoryLocation](TreeNode &node) {
       oldTreeNodeMemoryLocation.push_back(&node);
     });
   });
-  hosptitalCopy.visit([&newTreeNodeMemoryLocation](TreeNode &node) {
+  hospitalCopy.visit([&newTreeNodeMemoryLocation](TreeNode &node) {
     newTreeNodeMemoryLocation.push_back(&node);
   });
-  pushOldObjectMemoryIntoVectorThread.join();
+  pushOldHospitalMemoryIntoVectorThread.join();
   for (auto i1 = oldTreeNodeMemoryLocation.cbegin(),
             i2 = newTreeNodeMemoryLocation.cbegin();
        i1 != oldTreeNodeMemoryLocation.cend() &&
@@ -49,18 +49,19 @@ int main() {
       sourceVisitResult += node.printSubComponentInfo();
     });
   });
-  hosptitalCopy.visit([&copyVisitResult](const TreeNode &node) {
+  hospitalCopy.visit([&copyVisitResult](const TreeNode &node) {
     copyVisitResult += node.printSubComponentInfo();
   });
   collectOldObjectInfoThread.join();
   if (sourceVisitResult != copyVisitResult) {
     cerr << "deep copy error! source visit result:\n"
          << sourceVisitResult << "-----------------\n"
-         << "copy visit Result:" << copyVisitResult << endl;
+         << "copy visit Result:\n"
+         << copyVisitResult << endl;
   } else {
     cout << "deep copy succeeded.\n";
   }
   hospital.clear();
-  hosptitalCopy.clear();
+  hospitalCopy.clear();
   return 0;
 }
