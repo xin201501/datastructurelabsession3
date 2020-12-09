@@ -2,6 +2,7 @@
 #include "tree.h"
 #include "treefactory.h"
 #include <iostream>
+#include <thread>
 #include <vector>
 // visual studio 编译器stdc++latest
 using std::cerr;
@@ -21,12 +22,15 @@ int main() {
   });
   Tree hosptitalCopy = hospital.deepCopy();
   std::vector<TreeNode *> oldTreeNodeMemoryLocation, newTreeNodeMemoryLocation;
-  hospital.visit([&oldTreeNodeMemoryLocation](TreeNode &node) mutable {
-    oldTreeNodeMemoryLocation.push_back(&node);
+  std::thread pushOldObjectMemoryIntoVectorThread([&]() {
+    hospital.visit([&oldTreeNodeMemoryLocation](TreeNode &node) {
+      oldTreeNodeMemoryLocation.push_back(&node);
+    });
   });
-  hosptitalCopy.visit([&newTreeNodeMemoryLocation](TreeNode &node) mutable {
+  hosptitalCopy.visit([&newTreeNodeMemoryLocation](TreeNode &node) {
     newTreeNodeMemoryLocation.push_back(&node);
   });
+  pushOldObjectMemoryIntoVectorThread.join();
   for (auto i1 = oldTreeNodeMemoryLocation.cbegin(),
             i2 = newTreeNodeMemoryLocation.cbegin();
        i1 != oldTreeNodeMemoryLocation.cend() &&
@@ -37,17 +41,22 @@ int main() {
       return -1;
     }
   }
-  cout
-      << "this is deep copy.validating if the contents of them are the same.\n";
+  cout << "this is deep copy.validating if the contents of them are the "
+          "same.\n";
   std::string sourceVisitResult, copyVisitResult;
-  hospital.visit([&sourceVisitResult](const TreeNode &node) mutable {
-    sourceVisitResult += node.printSubComponentInfo();
+  std::thread collectOldObjectInfoThread([&]() {
+    hospital.visit([&sourceVisitResult](const TreeNode &node) {
+      sourceVisitResult += node.printSubComponentInfo();
+    });
   });
-  hosptitalCopy.visit([&copyVisitResult](const TreeNode &node) mutable {
+  hosptitalCopy.visit([&copyVisitResult](const TreeNode &node) {
     copyVisitResult += node.printSubComponentInfo();
   });
+  collectOldObjectInfoThread.join();
   if (sourceVisitResult != copyVisitResult) {
-    cerr << "deep copy error!" << endl;
+    cerr << "deep copy error! source visit result:\n"
+         << sourceVisitResult << "-----------------\n"
+         << "copy visit Result:" << copyVisitResult << endl;
   } else {
     cout << "deep copy succeeded.\n";
   }

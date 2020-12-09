@@ -61,6 +61,7 @@ private:
         return result;
       }
     }
+    return result;
   }
 
 public:
