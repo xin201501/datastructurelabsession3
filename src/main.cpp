@@ -18,7 +18,7 @@ int main() {
   cout << "---------------\n";
   hospital.visit([](const TreeNode &node) {
     cout << "component name:" << node.componentName
-         << " size: " << node.hasComponentSize << '\n';
+         << " count: " << node.hasComponentSize << '\n';
   });
   Tree hospitalCopy = hospital.deepCopy();
   std::vector<TreeNode *> oldTreeNodeMemoryLocation, newTreeNodeMemoryLocation;
